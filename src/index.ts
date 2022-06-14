@@ -9,15 +9,13 @@ import { isNewerVersion } from './utils';
 export { getMetamask };
 
 export type LaunchOptions = Parameters<typeof puppeteer['launch']>[0] & {
-  metamaskVersion: 'v10.8.1' | 'latest' | string;
+  metamaskVersion: 'v10.1.1' | 'latest' | string;
   metamaskLocation?: Path;
 };
 
 export type MetamaskOptions = {
   seed?: string;
   password?: string;
-  showTestNets?: boolean;
-  hideSeed?: boolean;
 };
 
 export type AddNetwork = {
@@ -48,7 +46,7 @@ export type TransactionOptions = {
   gasLimit?: number;
 };
 
-export const RECOMMENDED_METAMASK_VERSION = 'v10.8.1';
+export const RECOMMENDED_METAMASK_VERSION = 'v10.1.1';
 
 /**
  * Launch Puppeteer chromium instance with MetaMask plugin installed
@@ -60,6 +58,7 @@ export async function launch(puppeteerLib: typeof puppeteer, options: LaunchOpti
     );
 
   const { args, metamaskVersion, metamaskLocation, ...rest } = options;
+  const idx = 1;
 
   /* eslint-disable no-console */
   console.log(); // new line
@@ -86,7 +85,7 @@ export async function launch(puppeteerLib: typeof puppeteer, options: LaunchOpti
   /* eslint-enable no-console */
 
   // eslint-disable-next-line @typescript-eslint/naming-convention
-  const METAMASK_PATH = await downloader(metamaskVersion, metamaskLocation);
+  const METAMASK_PATH = await downloader(metamaskVersion, metamaskLocation, idx);
 
   return puppeteerLib.launch({
     headless: false,
@@ -98,19 +97,7 @@ export async function launch(puppeteerLib: typeof puppeteer, options: LaunchOpti
 /**
  * Setup MetaMask with base account
  * */
-const defaultMetamaskOptions: MetamaskOptions = {
-  showTestNets: true,
-};
-
-export async function setupMetamask(
-  browser: puppeteer.Browser,
-  options: MetamaskOptions = defaultMetamaskOptions,
-): Promise<Dappeteer> {
-  // set default values of not provided values (but required)
-  for (const key of Object.keys(defaultMetamaskOptions)) {
-    if (options[key] === undefined) options[key] = defaultMetamaskOptions[key];
-  }
-
+export async function setupMetamask(browser: puppeteer.Browser, options: MetamaskOptions = {}): Promise<Dappeteer> {
   const page = await closeHomeScreen(browser);
   await confirmWelcomeScreen(page);
 
@@ -118,12 +105,9 @@ export async function setupMetamask(
     page,
     options.seed || 'already turtle birth enroll since owner keep patch skirt drift any dinner',
     options.password || 'password1234',
-    options.hideSeed,
   );
 
   await closeNotificationPage(browser);
-
-  await showTestNets(page);
 
   return getMetamask(page);
 }
@@ -171,51 +155,23 @@ async function closeNotificationPage(browser: puppeteer.Browser): Promise<void> 
   });
 }
 
-async function showTestNets(metamaskPage: puppeteer.Page): Promise<void> {
-  const networkSwitcher = await metamaskPage.waitForSelector('.network-display');
-  await networkSwitcher.click();
-  await metamaskPage.waitForSelector('li.dropdown-menu-item');
-
-  const showHideButton = await metamaskPage.waitForSelector('.network-dropdown-content--link');
-  await showHideButton.click();
-
-  const option = await metamaskPage.waitForSelector(
-    '.settings-page__body > div:nth-child(7) > div:nth-child(2) > div > div > div:nth-child(1)',
-  );
-  await option.click();
-
-  const header = await metamaskPage.waitForSelector('.app-header__logo-container');
-  await header.click();
-}
-
 async function confirmWelcomeScreen(metamaskPage: puppeteer.Page): Promise<void> {
   const continueButton = await metamaskPage.waitForSelector('.welcome-page button');
   await continueButton.click();
 }
 
-async function importAccount(
-  metamaskPage: puppeteer.Page,
-  seed: string,
-  password: string,
-  hideSeed: boolean,
-): Promise<void> {
+async function importAccount(metamaskPage: puppeteer.Page, seed: string, password: string): Promise<void> {
   const importLink = await metamaskPage.waitForSelector('.first-time-flow button');
   await importLink.click();
 
   const metricsOptOut = await metamaskPage.waitForSelector('.metametrics-opt-in button.btn-primary');
   await metricsOptOut.click();
 
-  if (hideSeed) {
-    const seedPhraseInput = await metamaskPage.waitForSelector('.first-time-flow__seedphrase input[type=password]');
-    await seedPhraseInput.click();
-    await seedPhraseInput.type(seed);
-  } else {
-    const showSeedPhraseInput = await metamaskPage.waitForSelector('#ftf-chk1-label');
-    await showSeedPhraseInput.click();
+  const showSeedPhraseInput = await metamaskPage.waitForSelector('#ftf-chk1-label');
+  await showSeedPhraseInput.click();
 
-    const seedPhraseInput = await metamaskPage.waitForSelector('.first-time-flow textarea');
-    await seedPhraseInput.type(seed);
-  }
+  const seedPhraseInput = await metamaskPage.waitForSelector('.first-time-flow textarea');
+  await seedPhraseInput.type(seed);
 
   const passwordInput = await metamaskPage.waitForSelector('#password');
   await passwordInput.type(password);

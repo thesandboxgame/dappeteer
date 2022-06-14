@@ -10,11 +10,11 @@ const defaultDirectory = path.resolve(__dirname, '..', 'metamask');
 export type Path =
   | string
   | {
-      download: string;
-      extract: string;
-    };
+    download: string;
+    extract: string;
+  };
 
-export default async (version: string, location?: Path): Promise<string> => {
+export default async (version: string, location?: Path, idx?: number): Promise<string> => {
   const metamaskDirectory = typeof location === 'string' ? location : location?.extract || defaultDirectory;
   const downloadDirectory =
     typeof location === 'string' ? location : location?.download || path.resolve(defaultDirectory, 'download');
@@ -23,7 +23,7 @@ export default async (version: string, location?: Path): Promise<string> => {
     const extractDestination = path.resolve(metamaskDirectory, version.replace(/\./g, '_'));
     if (fs.existsSync(extractDestination)) return extractDestination;
   }
-  const { filename, downloadUrl, tag } = await getMetamaskReleases(version);
+  const { filename, downloadUrl, tag } = await getMetamaskReleases(version, idx);
   const extractDestination = path.resolve(metamaskDirectory, tag.replace(/\./g, '_'));
   if (!fs.existsSync(extractDestination)) {
     const downloadedFile = await downloadMetamaskReleases(filename, downloadUrl, downloadDirectory);
@@ -73,7 +73,7 @@ const downloadMetamaskReleases = (name: string, url: string, location: string): 
 
 type MetamaskReleases = { downloadUrl: string; filename: string; tag: string };
 const metamaskReleasesUrl = 'https://api.github.com/repos/metamask/metamask-extension/releases';
-const getMetamaskReleases = (version: string): Promise<MetamaskReleases> =>
+const getMetamaskReleases = (version: string, idx: number): Promise<MetamaskReleases> =>
   new Promise((resolve, reject) => {
     // eslint-disable-next-line @typescript-eslint/naming-convention
     const request = get(metamaskReleasesUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (response) => {
@@ -81,7 +81,7 @@ const getMetamaskReleases = (version: string): Promise<MetamaskReleases> =>
       response.on('data', (chunk) => {
         body += chunk;
       });
-      response.on('end', () => {
+      response.on('end', async () => {
         const data = JSON.parse(body);
         if (data.message) return reject(data.message);
         for (const result of data) {
@@ -97,7 +97,24 @@ const getMetamaskReleases = (version: string): Promise<MetamaskReleases> =>
             }
           }
         }
-        reject(`Version ${version} not found!`);
+        if (data.length === 0) {
+          reject(`Version ${version} not found!`);
+        } else {
+
+          try {
+            idx++;
+            const { filename, downloadUrl, tag } = await getMetamaskReleases(version, idx);
+            resolve({
+              downloadUrl: downloadUrl,
+              filename: filename,
+              tag: tag,
+            });
+          } catch (error) {
+            console.warn('getMetamaskReleases error:', error);
+            throw error;
+          }
+
+        }
       });
     });
     request.on('error', (error) => {

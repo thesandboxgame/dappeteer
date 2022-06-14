@@ -3,13 +3,11 @@ import { Page } from 'puppeteer';
 export const addToken = (page: Page) => async (tokenAddress: string): Promise<void> => {
   await page.bringToFront();
 
-  const addTokenButton = await page.waitForSelector(
-    '.box.import-token-link.box--flex-direction-row.box--text-align-center > a',
-  );
+  const addTokenButton = await page.waitForSelector('.add-token-button > button');
   await addTokenButton.click();
 
   const addressInput = await page.waitForSelector('#custom-address');
-  await addressInput.type(tokenAddress);
+  addressInput.type(tokenAddress);
 
   await page.waitForTimeout(4000);
 
