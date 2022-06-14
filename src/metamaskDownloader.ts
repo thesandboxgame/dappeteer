@@ -76,7 +76,7 @@ const metamaskReleasesUrl = 'https://api.github.com/repos/metamask/metamask-exte
 const getMetamaskReleases = (version: string, idx: number): Promise<MetamaskReleases> =>
   new Promise((resolve, reject) => {
     // eslint-disable-next-line @typescript-eslint/naming-convention
-    const request = get(metamaskReleasesUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (response) => {
+    const request = get(metamaskReleasesUrl + '?page=' + idx, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (response) => {
       let body = '';
       response.on('data', (chunk) => {
         body += chunk;
